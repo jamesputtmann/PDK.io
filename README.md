@@ -20,8 +20,8 @@ A Python utility that monitors changes in a Postman Collection by periodically d
 
 1. Clone this repository:
 ```bash
-git clone <your-repo-url>
-cd <repository-name>
+git clone https://github.com/jamesputtmann/PDK.io.git
+cd PDK.io
 ```
 
 2. Create and activate a virtual environment:
