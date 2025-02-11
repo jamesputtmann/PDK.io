@@ -1,16 +1,14 @@
 # Postman Collection Change Detector
 
-A professional Python utility that monitors changes in a Postman Collection by periodically downloading and comparing JSON files. It provides visual feedback using ASCII art to indicate whether changes have been detected, with efficient SQLite3 storage for historical tracking.
+A Python utility that monitors changes in a Postman Collection by periodically downloading and comparing JSON files to detect changes in the collection. In hopes that the postman collection ("comprehansive") is updated simultaneous to the rest of the API documentation.
 
 ## Features
 
-- Automatically downloads Postman Collection JSON from a specified URL
+- Automatically downloads Postman Collection JSON from a the URL
 - Stores collections efficiently in SQLite3 database with timestamps
 - Compares the latest version with the previous version
-- Displays ASCII art to clearly indicate if changes were detected
 - Maintains a searchable history of collection versions
-- Professional logging with detailed change tracking
-- Type hints and modern Python practices
+- Logging with detailed change tracking
 
 ## Prerequisites
 
@@ -66,8 +64,7 @@ The script will:
 2. Download the latest Postman collection
 3. Store it in the database with a timestamp
 4. Compare it with the previous version
-5. Display ASCII art indicating whether changes were detected
-6. Log detailed changes if any are found
+5. Log detailed changes if any are found
 
 ## Configuration
 
@@ -98,16 +95,3 @@ CREATE TABLE collections (
     collection_data JSON NOT NULL
 );
 ```
-
-## Development
-
-This project follows these best practices:
-- Type hints for better code maintainability
-- Context managers for database connections
-- Comprehensive error handling
-- Detailed logging
-- Clean code structure with separation of concerns
-
-## License
-
-[Your chosen license]
