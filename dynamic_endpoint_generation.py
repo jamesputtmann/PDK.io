@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
@@ -86,6 +87,7 @@ class PostmanCollectionParser:
         except requests.RequestException as e:
             print(f"Failed to fetch collection: {e}")
             return False
+
     def _create_folder_structure(self) -> Path:
         """Create folder structure based on Postman collection folders."""
         # Create main output directory
@@ -94,17 +96,9 @@ class PostmanCollectionParser:
         # Create or clear Postman references folder
         version_dir = self.output_dir / "Postman_End_Point_References"
         if version_dir.exists():
-            # Remove all contents of the directory
-            for item in version_dir.iterdir():
-                if item.is_file():
-                    item.unlink()
-                elif item.is_dir():
-                    for subitem in item.rglob("*"):
-                        if subitem.is_file():
-                            subitem.unlink()
-                    item.rmdir()
-        else:
-            version_dir.mkdir()
+            # Remove directory and all its contents
+            shutil.rmtree(version_dir)
+        version_dir.mkdir()
         
         return version_dir
 
