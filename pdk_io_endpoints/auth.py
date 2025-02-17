@@ -17,8 +17,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger('PDKAuth')
 
+# Get the repo root directory (parent of pdk_io_endpoints)
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Load credentials from credentials.json
-with open('credentials.json') as f:
+with open(os.path.join(REPO_ROOT, 'credentials.json')) as f:
     credentials = json.load(f)
 
 # User configuration
@@ -27,11 +30,12 @@ USER_CONFIG = {
     "password": credentials["password"], 
     "system_id": credentials["system_id"],
     "client_id": "544557759a01deb9874c02ee", #this seems to be the same for all users and systems using this auth flow. We should probably check if this is the case for all users and systems.
-
 }
 
 class TokenManager:
-    def __init__(self, db_path='token.db'):
+    def __init__(self, db_path=None):
+        if db_path is None:
+            db_path = os.path.join(REPO_ROOT, 'token.db')
         self.db_path = db_path
         self.logger = logging.getLogger('PDKAuth.TokenManager')
         self._ensure_db_exists()

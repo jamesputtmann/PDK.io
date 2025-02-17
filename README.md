@@ -1,22 +1,33 @@
-# Postman Collection Change Detector
+# PDK.io API Integration & Collection Monitor
 
-A Python utility that monitors changes in a Postman Collection by periodically downloading and comparing JSON files to detect changes in the collection. In hopes that the postman collection ("comprehansive") is updated simultaneous to the rest of the API documentation.
+A comprehensive Python-based integration with the PDK.io API, providing functionality to manage cloud nodes, devices, and device control operations. This project includes utilities for device management and a Postman collection monitor for API endpoint reference.
 
-## Features
+## API Documentation
 
-- Automatically downloads Postman Collection JSON from a the URL
-- Stores collections efficiently in SQLite3 database with timestamps
-- Compares the latest version with the previous version
-- Maintains a searchable history of collection versions
-- Logging with detailed change tracking
+For complete API documentation and reference, visit:
+[PDK.io API Documentation](https://developer.pdk.io/web/2.0/introduction)
 
-## Prerequisites
+## Project Structure
 
-- Python 3.7 or higher
-- Package manager (pip, uv, etc.)
-- SQLite3 (usually comes with Python)
+```
+PDK.io/
+├── credentials.json                    # API credentials (required)
+├── token.db                           # Authentication token storage
+├── collections.db                     # Postman collection history
+├── postman_endpoint_list_collection.py # Postman collection API reference generator
+├── test.py                            # Postman collection monitor
+├── requirements.txt                   # Project dependencies
+└── pdk_io_endpoints/
+    ├── auth.py                       # Authentication and base API functionality
+    ├── commands/                     # Device control operations
+    │   ├── close_device.py          # Device close operation
+    │   └── control_device.py        # Device open/close operations
+    └── system_functions/            # System management
+        ├── list_devices.py          # Device listing on a particular cloud node
+        └── list_cloud_nodes.py       # Cloud nodes on a system
+```
 
-## Installation
+## Setup & Installation
 
 1. Clone this repository:
 ```bash
@@ -26,125 +37,17 @@ cd PDK.io
 
 2. Create and activate a virtual environment:
 ```bash
-# Using venv
 python3 -m venv .venv
 source .venv/bin/activate  # On Unix/macOS
 .venv\Scripts\activate     # On Windows
-
-# Or using your preferred virtual environment tool
 ```
 
-3. Install dependencies using your preferred package manager:
-
-Using pip:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-Using uv:
-```bash
-uv pip install -r requirements.txt
-```
-
-4. Initialize the SQLite database:
-```bash
-python -c "from test import init_db; init_db()"
-```
-
-## Usage
-
-Run the script using Python:
-
-```bash
-python test.py
-```
-
-The script will:
-1. Connect to or create the SQLite database if it doesn't exist
-2. Download the latest Postman collection
-3. Store it in the database with a timestamp
-4. Compare it with the previous version
-5. Log detailed changes if any are found
-
-## Configuration
-
-The following parameters can be modified in `test.py`:
-
-- `url`: The URL of your Postman collection
-- `db_path`: The path where the SQLite database will be stored (default: "collections.db")
-
-
-## Database Schema
-
-The SQLite database contains a single table `collections` with the following schema:
-
-```sql
-CREATE TABLE collections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp DATETIME NOT NULL,
-    collection_data JSON NOT NULL
-);
-```
-
-## Project Structure
-
-```
-.
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── test.py
-├── auth.py          # Authentication and token management
-├── test_endpoint.py # API endpoint implementation
-├── collections.db   # Created on first run
-└── token.db        # Authentication token storage
-```
-
-## Authentication System
-
-The project includes a robust authentication system for interacting with the PDK.io API:
-
-### Features
-
-- Token-based authentication with automatic refresh
-- Secure token storage in SQLite database
-- Automatic token expiration handling
-- Efficient token reuse and management
-- Rate limit handling
-
-### Components
-
-#### 1. Authentication (`auth.py`)
-- `TokenManager`: Handles secure token storage and retrieval
-- `PDKAuth`: Manages the authentication flow
-- `BaseAPI`: Base class for API endpoint implementations
-
-#### 2. API Endpoints (`test_endpoint.py`)
-- Built on top of the authentication system
-- Implements specific API endpoints
-- Automatic token management
-- Error handling and logging
-
-### Usage
-
-1. Request credentials file from the author (required for authentication)
-2. Place `credentials.json` in the project root
-3. Initialize the endpoint handler:
-
-```python
-from test_endpoint import PDKEndpoint
-
-# Initialize endpoint handler (handles auth automatically)
-pdk = PDKEndpoint()
-
-# Make API requests
-nodes = pdk.list_cloud_nodes()
-```
-
-### Credentials
-
-The `credentials.json` file is required for authentication but is not included in the repository for security reasons. Contact the author to obtain the necessary credentials. The file should contain:
-
+4. Create a `credentials.json` file in the root directory:
 ```json
 {
     "email": "your.email@example.com",
@@ -153,11 +56,84 @@ The `credentials.json` file is required for authentication but is not included i
 }
 ```
 
-### Token Storage
+*Note: This user will need to be added to "Permissions" in the PDK.io front-facing UI/UX. Only Admin permission level users have been tested so far.*
 
-Tokens are securely stored in `token.db` with the following schema:
+
+## Core Features
+
+### Postman Collection Monitor and API Reference Generator
+
+The project includes two utilities to fetch and monitor the PDK.io API Postman collection:
+
+1. `postman_endpoint_list_collection.py`: This tool helps developers:
+    - Access and reference available API endpoints
+    - Track changes in the API documentation
+    - Generate local endpoint references for development
+    - Monitor updates to the API specification
+
+    Usage:
+    ```bash
+    python postman_endpoint_list_collection.py
+    ```
+
+2. `test.py`: This monitoring utility helps developers:
+    - Fetch JSON from a specified URL with exponential backoff retry
+    - Save the fetched collection to a local database
+    - Compare the new collection with the previous version
+    - Display comparison results with ASCII art
+
+    Usage:
+    ```bash
+    python test.py
+    ```
+
+### Device Management Commands
+
+1. **List Cloud Nodes and Devices**
+```bash
+python -m pdk_io_endpoints.system_functions.list_devices
+python -m pdk_io_endpoints.system_functions.list_cloud_nodes
+```
+- Lists all available cloud nodes
+- Displays devices on selected nodes
+- Stores information in local database
+
+2. **Control Devices (Open/Close)**
+```bash
+python -m pdk_io_endpoints.commands.control_device
+```
+- Unified interface for device control (open/close)
+- Supports custom dwell time for open operations
+- Includes activity history
+
+3. **Dedicated Close Device**
+```bash
+python -m pdk_io_endpoints.commands.close_device
+```
+- Streamlined interface for closing devices
+- Includes activity tracking
+
+### Authentication System
+
+The system includes a robust authentication framework:
+- Token-based authentication with automatic refresh
+- Secure token storage in SQLite
+- Rate limit handling
+- Session management
+
+However, to ensure production readiness, additional testing and network request analysis are required. Without the properly provisioned API client and client secret, a refresh token cannot be obtained to exchange for future auth_tokens (ID tokens). We are conducting further testing to determine if any network requests can handle this without necessitating a full re-authentication (log-in). In the meantime, users may experience rate limitation.
+
+### Database Management
+
+The project uses two SQLite databases for managing different aspects of the system:
+
+1. **Token Database** (`token.db`)
+
+This database manages authentication tokens and stores system data across four main tables:
 
 ```sql
+-- Authentication Tokens
+-- Stores authentication and system tokens with their expiry information
 CREATE TABLE tokens (
     system_id TEXT PRIMARY KEY,
     auth_token TEXT,
@@ -168,126 +144,112 @@ CREATE TABLE tokens (
     system_token_expiry TIMESTAMP,
     last_updated TIMESTAMP
 );
+
+-- Cloud Nodes Information
+-- Maintains information about PDK cloud nodes including connection status
+CREATE TABLE cloud_nodes (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    serial_number TEXT,
+    sync_status TEXT,
+    connection_status TEXT,
+    software_version TEXT,
+    mac_address TEXT,
+    ipv4_address TEXT,
+    ipv6_address TEXT,
+    last_updated TIMESTAMP
+);
+
+-- Devices Information
+-- Stores comprehensive device configuration and status information
+CREATE TABLE devices (
+    id TEXT PRIMARY KEY,
+    cloud_node_id TEXT,
+    port INTEGER,
+    delay INTEGER,
+    dwell INTEGER,
+    dps BOOLEAN,              -- Door Position Sensor status
+    rex BOOLEAN,              -- Request to Exit status
+    name TEXT,
+    connection TEXT,
+    forced_alarm BOOLEAN,
+    auto_open_after_first_allow BOOLEAN,
+    prop_alarm BOOLEAN,
+    prop_delay INTEGER,
+    firmware_version TEXT,
+    hardware_version TEXT,
+    serial_number TEXT,
+    input_types TEXT,         -- JSON array of supported input types
+    osdp_address INTEGER,
+    partition TEXT,           -- JSON array of partition information
+    authentication_policy TEXT,
+    reader TEXT,              -- JSON object of reader configuration
+    type TEXT,
+    public_icon TEXT,
+    reader_type TEXT,
+    last_updated TIMESTAMP,
+    FOREIGN KEY (cloud_node_id) REFERENCES cloud_nodes (id)
+);
+
+-- Gate Activity Logging
+-- Tracks all gate operations and their outcomes
+CREATE TABLE gate_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT,
+    cloud_node_id TEXT,
+    action TEXT,              -- Type of action (OPEN/CLOSE)
+    status TEXT,              -- Outcome status (SUCCESS/FAILED)
+    response TEXT,            -- JSON object containing detailed response
+    timestamp TIMESTAMP,
+    FOREIGN KEY (device_id) REFERENCES devices (id),
+    FOREIGN KEY (cloud_node_id) REFERENCES cloud_nodes (id)
+);
 ```
 
+2. **Collections Database** (`collections.db`)
 
-## Dynamic Endpoint Generation
+This database tracks changes in the PDK.io API Postman collection:
 
-The project includes a system for parsing and generating API endpoint references from the Postman collection. This functionality helps maintain up-to-date API endpoint documentation and provides a foundation for dynamic endpoint implementation.
-
-### Features
-
-- Automatic Postman collection parsing
-- Structured endpoint reference generation
-- Maintains original collection hierarchy
-- JSON-formatted endpoint documentation
-- Support for various request types and parameters
-
-### Components
-
-#### 1. Collection Parser (`dynamic_endpoint_generation.py`)
-- `PostmanCollectionParser`: Handles collection fetching and parsing
-- `APIEndpoint`: Base class for endpoint implementations
-- Specialized API classes for different endpoint categories:
-  - `CloudNodesAPI`
-  - `DevicesAPI`
-  - `ReportsAPI`
-  - `HolderRulesAPI`
-
-### Generated Structure
-
-```
-api_endpoints/
-└── Postman_End_Point_References/
-    ├── _collection_info.json
-    ├── cloud_nodes/
-    │   ├── list_cloud_nodes.json
-    │   └── get_cloud_node.json
-    ├── devices/
-    │   └── open_device.json
-    └── ...
+```sql
+CREATE TABLE collections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME NOT NULL,    -- When the collection was fetched
+    collection_data JSON NOT NULL   -- Complete Postman collection data
+);
 ```
 
-### Endpoint Reference Format
+## Development
 
-Each endpoint is documented in a JSON file with the following structure:
+### Adding New Endpoints
+1. Reference the API documentation at [PDK.io Developer Portal](https://developer.pdk.io/web/2.0/introduction)
+2. Use `postman_endpoint_list_collection.py` to view available endpoints
+3. Create new endpoint files in appropriate directories
+4. Implement endpoint logic following existing patterns
 
-```json
-{
-    "info": {
-        "name": "Endpoint Name",
-        "path": "category/endpoint",
-        "created": "timestamp"
-    },
-    "request": {
-        "method": "HTTP_METHOD",
-        "url": "endpoint_url",
-        "description": "Endpoint description",
-        "headers": [
-            {
-                "key": "header_name",
-                "value": "header_value"
-            }
-        ],
-        "params": [
-            {
-                "key": "param_name",
-                "value": "param_value"
-            }
-        ],
-        "body": {
-            // Request body schema
-        }
-    },
-    "examples": [
-        {
-            "name": "Example name",
-            "response": [
-                // Example responses
-            ]
-        }
-    ]
-}
-```
+### Best Practices
+- Use type hints for better code clarity
+- Follow established logging patterns
+- Implement proper error handling
+- Document new endpoints
 
-### Usage
+## Contributing
 
-1. Generate endpoint references:
-```python
-from dynamic_endpoint_generation import PostmanCollectionParser
+1. Fork the repository
+2. Create a feature branch
+3. Implement changes
+4. Submit a pull request
 
-# Initialize parser with collection URL
-url = "https://developer.pdk.io/downloads/postman-collection-2.0.json"
-parser = PostmanCollectionParser(url)
+## Support
 
-# Process collection and generate references
-parser.process_collection()
-```
+For questions or issues:
+1. Check the [PDK.io API Documentation](https://developer.pdk.io/web/2.0/introduction)
+2. Review logged errors
+3. Contact the development team
 
-2. Use with PDK authentication:
-```python
-from auth import BaseAPI
-from typing import Dict, Any, Optional
+## License
 
-class CustomEndpoint(BaseAPI):
-    def my_endpoint(self, param1: str, param2: Optional[Dict] = None) -> Dict[str, Any]:
-        return self.get('endpoint_path', params={'param1': param1, **param2 or {}})
-```
+This project is open source and requires PDK.io user credentials for usage. Please reach out to the appropriate administrator to obtain user credentials for a system. 
 
-### Future Potential
+## Important Note
 
-While currently used for reference generation, this system could be extended to:
-- Automatically generate complete endpoint implementations
-- Validate API responses against schemas
-- Generate API client libraries
-- Automate endpoint testing
-- Create API documentation
-
-Note: The dynamic generation of complete endpoints would require careful handling of:
-- Authentication requirements
-- Parameter validation
-- Response processing
-- Error handling
-- Rate limiting
-
-The current implementation focuses on providing accurate reference material for manual endpoint implementation while maintaining compatibility with the authentication system.
+The system must be migrated to the PDK.io 2.0. Ensure that all endpoints and functionalities are compatible with the latest version of the PDK.io API. Refer to the [PDK.io 2.0 Migration Guide](https://developer.pdk.io/web/2.0/migration) for detailed instructions and best practices on how to perform the migration.
