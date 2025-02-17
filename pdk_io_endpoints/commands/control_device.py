@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from ..system_functions.list_cloud_nodes import PDKEndpoint, BaseAPI
 from ..system_functions.list_devices import PDKDeviceEndpoint
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -125,8 +126,8 @@ class PDKDeviceControlEndpoint(BaseAPI):
         super().__init__(base_url)
         self.activity_manager = GateActivityManager()
     
-    def try_open_device(self, cloud_node_id: str, device_id: str, dwell: Optional[int] = None) -> bool:
-        """Attempt to open a device.
+    def toggle_device(self, cloud_node_id: str, device_id: str, dwell: Optional[int] = None) -> bool:
+        """Toggle a device's state (open if closed, close if open).
         
         Args:
             cloud_node_id (str): ID of the cloud node
@@ -136,7 +137,19 @@ class PDKDeviceControlEndpoint(BaseAPI):
         Returns:
             bool: True if operation was successful, False otherwise
         """
+        # Get fresh system token
+        self._refresh_if_needed()
+        
+        # Build endpoint URL
         endpoint = f"cloud-nodes/{cloud_node_id}/devices/{device_id}/try-open"
+        url = f"{self.base_url}/{self.auth.system_id}/{endpoint.lstrip('/')}"
+        
+        # Prepare headers
+        headers = {
+            "Authorization": f"Bearer {self.auth_data['system_token']}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
         
         # Prepare request data
         data = {}
@@ -146,19 +159,16 @@ class PDKDeviceControlEndpoint(BaseAPI):
             data['dwell'] = dwell
             
         try:
-            # Make raw request and check status code instead of parsing response
-            response = self.session.post(
-                f"{self.base_url}/{endpoint}",
-                headers=self.headers,
-                json=data
-            )
+            # Make request with proper authorization
+            response = requests.post(url, headers=headers, json=data)
             response.raise_for_status()
             
             # If we get here, the request was successful (204 No Content)
             success = True
             status = "SUCCESS"
+            self.logger.info(f"Successfully toggled device {device_id}")
         except Exception as e:
-            self.logger.error(f"Failed to control device: {str(e)}")
+            self.logger.error(f"Failed to toggle device: {str(e)}")
             success = False
             status = "FAILED"
         
@@ -166,49 +176,9 @@ class PDKDeviceControlEndpoint(BaseAPI):
         self.activity_manager.log_activity(
             device_id=device_id,
             cloud_node_id=cloud_node_id,
-            action="OPEN",
+            action="TOGGLE",
             status=status,
             response={"success": success, "dwell": dwell if dwell else "default"}
-        )
-        
-        return success
-
-    def close_device(self, cloud_node_id: str, device_id: str) -> bool:
-        """Attempt to close a device.
-        
-        Args:
-            cloud_node_id (str): ID of the cloud node
-            device_id (str): ID of the device to control
-            
-        Returns:
-            bool: True if operation was successful, False otherwise
-        """
-        endpoint = f"cloud-nodes/{cloud_node_id}/devices/{device_id}/close"
-        
-        try:
-            # Make raw request and check status code instead of parsing response
-            response = self.session.post(
-                f"{self.base_url}/{endpoint}",
-                headers=self.headers,
-                json={}
-            )
-            response.raise_for_status()
-            
-            # If we get here, the request was successful (204 No Content)
-            success = True
-            status = "SUCCESS"
-        except Exception as e:
-            self.logger.error(f"Failed to close device: {str(e)}")
-            success = False
-            status = "FAILED"
-        
-        # Log the activity
-        self.activity_manager.log_activity(
-            device_id=device_id,
-            cloud_node_id=cloud_node_id,
-            action="CLOSE",
-            status=status,
-            response={"success": success}
         )
         
         return success
@@ -296,63 +266,45 @@ def main():
                 except ValueError:
                     print("Please enter a valid number")
 
-            # Get operation type
-            while True:
-                operation = input("\nWould you like to (o)pen or (c)lose the device? (o/c): ").lower()
-                if operation in ['o', 'c']:
-                    break
-                print("Please enter 'o' for open or 'c' for close")
-
-            if operation == 'o':
-                # Get dwell time if desired
-                dwell = None
-                custom_dwell = input("\nWould you like to specify a custom dwell time? (y/n): ")
-                if custom_dwell.lower() == 'y':
-                    while True:
-                        try:
-                            dwell_input = input("Enter dwell time in tenths of a second (1-5400, or press Enter for default): ")
-                            if not dwell_input:
-                                break
-                            dwell = int(dwell_input)
-                            if 1 <= dwell <= 5400:
-                                break
-                            else:
-                                print("Dwell time must be between 1 and 5400 (tenths of a second)")
-                        except ValueError:
-                            print("Please enter a valid number")
+            # Get dwell time if desired
+            dwell = None
+            custom_dwell = input("\nWould you like to specify a custom dwell time? (y/n): ")
+            if custom_dwell.lower() == 'y':
+                while True:
+                    try:
+                        dwell_input = input("Enter dwell time in tenths of a second (1-5400, or press Enter for default): ")
+                        if not dwell_input:
+                            break
+                        dwell = int(dwell_input)
+                        if 1 <= dwell <= 5400:
+                            break
+                        else:
+                            print("Dwell time must be between 1 and 5400 (tenths of a second)")
+                    except ValueError:
+                        print("Please enter a valid number")
 
             # Confirm action
-            action_word = "open" if operation == 'o' else "close"
-            confirm = input(f"\nAre you sure you want to {action_word} {selected_device['name']}? (y/n): ")
+            confirm = input(f"\nAre you sure you want to toggle {selected_device['name']}? (y/n): ")
             if confirm.lower() != 'y':
                 print("Operation cancelled.")
                 return
 
             # Execute device control
-            print(f"\n=== {action_word.title()}ing Device: {selected_device['name']} ===")
-            if operation == 'o':
-                success = pdk_control.try_open_device(
-                    cloud_node_id=selected_node['id'],
-                    device_id=selected_device['id'],
-                    dwell=dwell
-                )
-                if success:
-                    print(f"\nSuccessfully opened {selected_device['name']}")
-                    if dwell:
-                        print(f"Device will remain open for {dwell/10:.1f} seconds")
-                    else:
-                        print("Using default dwell time")
+            print(f"\n=== Toggling Device: {selected_device['name']} ===")
+            success = pdk_control.toggle_device(
+                cloud_node_id=selected_node['id'],
+                device_id=selected_device['id'],
+                dwell=dwell
+            )
+            
+            if success:
+                print(f"\nSuccessfully toggled {selected_device['name']}")
+                if dwell:
+                    print(f"Device will remain open for {dwell/10:.1f} seconds")
                 else:
-                    print(f"\nFailed to open {selected_device['name']}")
+                    print("Using default dwell time")
             else:
-                success = pdk_control.close_device(
-                    cloud_node_id=selected_node['id'],
-                    device_id=selected_device['id']
-                )
-                if success:
-                    print(f"\nSuccessfully closed {selected_device['name']}")
-                else:
-                    print(f"\nFailed to close {selected_device['name']}")
+                print(f"\nFailed to toggle {selected_device['name']}")
             
             # Show recent activity
             activities = pdk_control.activity_manager.get_device_activity(selected_device['id'])
