@@ -4,7 +4,7 @@ import sqlite3
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from ..auth import BaseAPI
+from ..betaAuth import BaseAPI
 
 # Configure logging
 logging.basicConfig(
